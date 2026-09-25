@@ -1,16 +1,28 @@
-# 3-3-4 Stopper Board
+# Soccer Tactics Board
 
-An interactive soccer tactics board for coaching 9–12 year olds in a 3-3-4 with a stopper: three strikers, three midfielders, three defenders, and a stopper in front of the back line, plus the goalkeeper. Written back-to-front, that's a 3-1-3-3.
+An interactive soccer tactics board for coaching 9–12 year olds. Pick a formation, move the ball around the field, and every player shifts to where they should be, both when your team has the ball and when the other team has it.
 
-Move the ball around the field and every player shifts to where they should be, both when your team has the ball and when the other team has it.
+## Formations
+
+Formations are written defenders-midfielders-strikers, so a 4-3-3 is four defenders, three midfielders and three strikers.
+
+- 4-3-3 (Flatback 4), the default
+- 4-3-3 (with Sweeper)
+- 4-3-3 (with Stopper)
+- 3-4-3
+- 4-4-2 (Flatback 4), (with Sweeper), (with Stopper)
+- 4-2-4 (Flatback 4), (with Sweeper), (with Stopper)
+- 3-3-4
+
+The page remembers the last formation picked, and the link updates (for example `#442-stopper`) so you can send a specific formation to another coach.
 
 ## Features
 
-- **Live positions:** place the ball at your finger, or move it relative to how your finger moves.
+- **Live positions:** place the ball at your finger, or move it relative to how your finger moves (the default on phones and tablets).
 - **Situations:** starting shape, building from the back, attacking down the right, shooting at their goal (strikers crash in for rebounds), crossing from the left, defending your right side, the high press, and stopping a counter.
-- **Set pieces:** your corner kicks and theirs (both can be flipped to the other side), plus your goal kicks and theirs.
+- **Set pieces:** your corner kicks and theirs (both can be flipped to the other side), plus your goal kicks and theirs. Every formation gets its own set-piece jobs.
 - **Player cards:** tap any player to see their job with and without the ball, a coaching cue, and what they're doing right now.
-- **Coverage areas:** shows where each position can expect to be across all situations, with their set-piece spots marked.
+- **Coverage areas:** shows where each position can expect to be across all situations, with their set-piece spots marked. The goalkeeper's area is the whole penalty box.
 - **Shape readouts:** back line height, team length, and team width.
 
 ## Run it
