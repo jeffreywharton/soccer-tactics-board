@@ -133,7 +133,7 @@ svg.cov .pl:not(.sel){opacity:.35}
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">Tactics board · 11 v 11 · Ages 9–12</div>
+    <div class="eyebrow" id="f-eyebrow">Tactics board · 11 v 11 · Ages 9–12</div>
     <h1 id="f-title">Soccer tactics board</h1>
     <p class="lede" id="f-lede"></p>
     <div class="fsel">
@@ -203,10 +203,10 @@ svg.cov .pl:not(.sel){opacity:.35}
   <section>
     <h2>Rules the whole team follows</h2>
     <div class="principles">
-      <div><h3>Shift with the ball</h3><p>All ten field players slide left, right, up and down as a group. Nobody stays glued to a spot.</p></div>
+      <div><h3>Shift with the ball</h3><p>All <span id="p-count">ten</span> field players slide left, right, up and down as a group. Nobody stays glued to a spot.</p></div>
       <div><h3>Wide when we have it</h3><p>Wide players hug the touchline and the back line spreads out, so the field gets as big as possible.</p></div>
       <div><h3>Narrow when they have it</h3><p>Players far from the ball tuck toward the middle. Close the center first; the far touchline can wait.</p></div>
-      <div><h3>Keep it short</h3><p>Aim for 35–45 m from the back line to the strikers. Bigger gaps are where the other team plays through you.</p></div>
+      <div><h3>Keep it short</h3><p>Aim for <span id="p-short">35–45 m</span> from the back line to the strikers. Bigger gaps are where the other team plays through you.</p></div>
       <div><h3>Follow every shot</h3><p>When we shoot, the strikers who didn't shoot crash the goal for the rebound. Keepers this age drop a lot of balls.</p></div>
       <div id="p-step"></div>
     </div>
@@ -250,9 +250,7 @@ const FWDS = {
   f3: [['LW',11,10,70],['ST',9,34,74],['RW',7,58,70]],
   f4: [['LW',11,8,70,'Left Winger'],['LS',10,26,74,'Left Center Striker'],['RS',9,42,74,'Right Center Striker'],['RW',7,60,70,'Right Winger']],
 };
-const STEP_FLAT = b => b.x < 34
-  ? {who:'LCB', whoName:'left center back', cover:'RCB', coverName:'right center back'}
-  : {who:'RCB', whoName:'right center back', cover:'LCB', coverName:'left center back'};
+const STEP_FLAT = b => b.x < 34 ? {who:'LCB', cover:'RCB'} : {who:'RCB', cover:'LCB'};
 const BACK_META = {
   flat: {suffix:' with a flat back four', desc:'four defenders in a flat line', up:'RCB', step:STEP_FLAT,
     home:'The back four sit in a flat line near the edge of the box.',
@@ -261,14 +259,14 @@ const BACK_META = {
     centerRule:'The two center backs never both leave the center.',
     principle:['One steps, one covers','When one center back steps up to the ball, the other drops in behind and the outside backs pinch in. Otherwise the back four stay level.']},
   sweeper: {suffix:' with a sweeper', desc:'three defenders with a sweeper behind them', up:'CB',
-    step:() => ({who:'CB', whoName:'center back', cover:'SW', coverName:'sweeper'}),
+    step:() => ({who:'CB', cover:'SW'}),
     home:'The back three sit across the edge of the box with the sweeper just behind them.',
     rest:'The sweeper and back three', middle:'the center back and sweeper cover the middle', pivot:'a center midfielder',
     counter:'The center back steps to the ball to slow it down, the sweeper covers behind, the outside defenders pinch in, and the midfielders sprint back goal-side.',
     centerRule:'The sweeper never leaves the middle.',
     principle:['Markers mark, sweeper sweeps','The back three pick up players. The sweeper stays free behind them and cleans up anything that gets through.']},
   stopper: {suffix:' with a stopper', desc:'three defenders with a stopper in front of them', up:'SP',
-    step:() => ({who:'SP', whoName:'stopper', cover:'CB', coverName:'center back'}),
+    step:() => ({who:'SP', cover:'CB'}),
     home:'The back three sit across the edge of the box with the stopper just ahead.',
     rest:'The stopper and back three', middle:'the stopper and center back cover the middle', pivot:'the stopper',
     counter:'The stopper steps to the ball to slow it down, the center back covers behind, the outside defenders pinch in, and the midfielders sprint back goal-side.',
@@ -280,6 +278,17 @@ const BACK_META = {
     counter:'The nearest midfielder delays the ball, the center back holds the middle, the outside defenders pinch in, and everyone else sprints back goal-side.',
     centerRule:'The center back never leaves the middle.',
     principle:['Three across, always connected','The center back never leaves the middle alone. When an outside defender presses, the other two slide across behind.']},
+  // 6v6 back lines
+  two: {suffix:'', up:null, step:STEP_FLAT,
+    rest:'The two defenders', middle:'the other defender covers the middle',
+    counter:'The nearest defender steps to the ball to slow it down, the other defender covers behind, and the strikers sprint back to help.',
+    centerRule:'The two defenders never both leave the center.',
+    principle:['One steps, one covers','When one defender steps up to the ball, the other drops in behind. Never both chase the ball.']},
+  three6: {suffix:'', up:null, step:() => ({who:'CB', cover:null}),
+    rest:'The three defenders', middle:'the center back covers the middle',
+    counter:'The center back steps to the ball to slow it down, the outside defenders pinch in behind, and the strikers sprint back to help.',
+    centerRule:'The center back never leaves the middle alone.',
+    principle:['Three across, always connected','When one defender steps to the ball, the other two slide across behind. The middle is never empty.']},
 };
 const MID_HOME = {m2:'Two center mids sit side by side in the middle', m3:'Three midfielders spread across the middle', m4:'Four midfielders spread across the middle'};
 const FWD_HOME = {f2:'two strikers up top.', f3:'three strikers high and wide.', f4:'four strikers across the front, with the wingers on the touchlines.'};
@@ -298,16 +307,43 @@ const FORMATIONS = [
   ['424-stopper', '4-2-4 (with Stopper)', '4-2-4', 'stopper', 'm2', 'f4'],
   ['334',         '3-3-4',                '3-3-4', 'three',   'm3', 'f4', {CM:5, RM:8}],
 ];
+// 6v6: five field players plus the goalkeeper, on a small-sided field about 42 x 27 m.
+// Positions use the same 68 x 105 drawing; distances shown to coaches are scaled to the small field.
+const SMALL = [
+  {key:'6v6-23', label:'2-3 (2 defenders, 3 strikers)', short:'2-3', back:'two',
+   desc:'Two defenders and three strikers.',
+   home:'The two defenders sit side by side near the edge of the box, with three strikers spread across the front.',
+   players:[['LCB',3,22,22,'Left Defender'],['RCB',2,46,22,'Right Defender'],['LW',11,10,60],['ST',9,34,66,null,'ST6'],['RW',7,58,60]]},
+  {key:'6v6-32', label:'3-2 (3 defenders, 2 strikers)', short:'3-2', back:'three6',
+   desc:'Three defenders and two strikers.',
+   home:'Three defenders sit across the edge of the box, with two strikers up top.',
+   players:[['LB',3,12,24],['CB',4,34,20,null,'CB_three'],['RB',2,56,24],['LS',10,24,64],['RS',9,44,64]]},
+  {key:'6v6-212', label:'2-1-2 (2 defenders, 1 mid, 2 strikers)', short:'2-1-2', back:'two',
+   desc:'Two defenders, one midfielder and two strikers.',
+   home:'Two defenders sit side by side near the edge of the box, one midfielder links the team in the middle, and two strikers play up top.',
+   players:[['LCB',3,22,20,'Left Defender'],['RCB',2,46,20,'Right Defender'],['CM',8,34,42],['LS',10,24,66],['RS',9,44,66]]},
+];
+const SMALL_SCALE = 0.4;
+// with no midfield behind them, 6v6 strikers track back further
+const U_SMALL = {...U, fwd:{...U.fwd, kb:.75, dmin:[26,18]}};
 const DEFAULT_FORMATION = '433-flat';
+const toPlayer = (up, nums = {}) => ([id, n, x, d, name, role]) => ({
+  id, n: nums[id] || n, x, d, name: name || NAMES[id], role: role || id, unit: UNIT_OF[id], up: id === up,
+});
 function buildFormation(key){
+  const sm = SMALL.find(f => f.key === key);
+  if (sm){
+    const meta = BACK_META[sm.back];
+    return {...meta, ...sm, small:true, scale:SMALL_SCALE, U:U_SMALL, players:[['GK',1,34,5], ...sm.players].map(toPlayer(null)),
+      title:`The 6v6 ${sm.short}`, homeText:sm.home,
+      lede:`${sm.desc} Move the ball and watch how every player should shift. Your team attacks up the field toward the orange goal and defends the blue goal at the bottom.`};
+  }
   const [, label, short, back, mid, fwd, nums = {}] = FORMATIONS.find(f => f[0] === key);
   const meta = BACK_META[back];
-  const players = [['GK',1,34,5], ...BACKS[back], ...MIDS[mid], ...FWDS[fwd]].map(([id, n, x, d, name, role]) => ({
-    id, n: nums[id] || n, x, d, name: name || NAMES[id], role: role || id, unit: UNIT_OF[id], up: id === meta.up,
-  }));
+  const players = [['GK',1,34,5], ...BACKS[back], ...MIDS[mid], ...FWDS[fwd]].map(toPlayer(meta.up, nums));
   const nMid = MIDS[mid].length, nFwd = FWDS[fwd].length;
   const cap = s => s[0].toUpperCase() + s.slice(1);
-  return {key, label, short, back, ...meta, players,
+  return {key, label, short, back, ...meta, players, scale:1, U,
     title: `The ${short}${meta.suffix}`,
     lede: `${cap(meta.desc)}, ${WORD[nMid]} midfielders and ${WORD[nFwd]} strikers. Move the ball and watch how every player should shift. Your team attacks up the field toward the orange goal and defends the blue goal at the bottom.`,
     homeText: `${meta.home} ${MID_HOME[mid]}, ${FWD_HOME[fwd]}`};
@@ -337,7 +373,7 @@ const ROLES = {
       cue:'Never leave the middle empty.'},
   LCB:{sub:'Defense · one of the two center backs',
       att:['Split wide toward the edge of the box when the goalkeeper has the ball.','Move the ball side to side and look for the pass into midfield.','Stay behind the ball with your partner as the last line.'],
-      def:['Stay level with your partner and the outside backs.','When your partner steps to the ball, drop in behind to cover. When you step, your partner covers.','Win the first header and clear it wide.'],
+      def:['Stay level with the rest of the back line.','When your partner steps to the ball, drop in behind to cover. When you step, your partner covers.','Win the first header and clear it wide.'],
       cue:'One steps, one covers.'},
   SW:{sub:'Plays free behind the back three',
       att:['Stay behind the back three as the safe pass backward.','Switch play from one side to the other.','Hold near the top of our half as the last line against a counter.'],
@@ -372,6 +408,10 @@ const ROLES = {
       def:['Press the other team\'s left defender.','Block the pass down your touchline.','Recover to about halfway if the ball gets past you.'],
       cue:'Wide to build it, in the box to finish it.'},
 };
+ROLES.ST6 = {sub:'Strikers · links the team in a 6v6',
+  att:['Check back toward the ball so the defenders always have a forward pass.','Hold the ball up and lay it off to a winger running past you.','Attack the middle of the goal on crosses and follow every shot in for the rebound.'],
+  def:['Press the ball first so the defenders have time to set up.','Drop back to the middle of the field when the ball gets past you.','Force play toward a touchline where the wingers can help.'],
+  cue:'Show for it, then turn and go.'};
 ROLES.RCB = ROLES.LCB; ROLES.RCM = ROLES.LCM; ROLES.RS = ROLES.LS;
 
 // Set pieces list spots, not players: each formation's players are matched to the spots
@@ -381,16 +421,22 @@ const SCEN = [
   {key:'home', label:'Starting shape', phase:'attack', ball:{x:34,d:52.5}, home:true,
    text:f => `Home spots for the ${f.short}. ${f.homeText} Each line is about 12–15 m from the next.`},
   {key:'build', label:'Build from the back', phase:'attack', ball:{x:24,d:11},
+   text6:f => `The goalkeeper has it. The defenders split wide toward the edges of the box, the nearest player shows for a short pass, and the strikers push up to stretch the other team.`,
    text:f => `The goalkeeper has it. The outside defenders split wide, ${f.pivot} drops in to take a short pass, the midfield spreads out, and the strikers push up to stretch the other team.`},
   {key:'right', label:'Attack down the right', phase:'attack', ball:{x:62,d:84},
+   text6:f => `Our right-side attacker carries it toward the corner. The other attackers come inside toward the box, and the defenders move up toward halfway so the team stays connected.`,
    text:f => `Our right-side attacker carries it toward the corner. The nearest midfielder supports underneath and the right defender pushes up. Players on the left side come inside toward the box, and the back line moves up past halfway so the team stays connected.`},
   {key:'shot', label:'Shooting at their goal', phase:'attack', ball:{x:40,d:89},
+   text6:f => `A shot from the edge of the box. The strikers who aren't shooting crash in toward the goal to follow up any rebound. ${f.rest} stay near halfway so a counter can't get behind them.`,
    text:f => `A shot from the edge of the box. The strikers who aren't shooting crash in toward the goal on either side of the keeper to follow up any rebound. The midfielders move to the top of the box to shoot again if the ball bounces out. ${f.rest} stay near halfway.`},
   {key:'cross', label:'Cross from the left', phase:'attack', ball:{x:5,d:92},
+   text6:f => `Runners attack the near post and the far post, and anyone left arrives at the top of the box for the cutback. ${f.rest} hold near halfway to stop a counter.`,
    text:f => `Runners attack the near post and the far post, a midfielder arrives at the top of the box for the cutback, and a far-side player waits for the rebound. ${f.rest} hold near halfway to stop a counter.`},
   {key:'defright', label:'Defend our right side', phase:'defend', ball:{x:60,d:30},
+   text6:f => `Everyone slides toward the ball. The nearest player presses, ${f.middle}, and the far-side players narrow to close the center.`,
    text:f => `Everyone slides toward the ball. The nearest player presses, the right defender stays goal-side behind, ${f.middle}, and the left defender pinches in. The far-side players narrow to close the center.`},
   {key:'press', label:'High press', phase:'defend', ball:{x:26,d:88},
+   text6:f => `The nearest striker presses the ball and the others cut off the easy passes. The defenders push up toward halfway so the space behind stays small. The goalkeeper stays ready to sweep.`,
    text:f => `The nearest striker presses the ball and the others cut off the easy passes. Midfield steps up behind them and the back line pushes up past its own third, so the space behind stays small. The goalkeeper stays ready to sweep.`},
   {key:'counter', label:'Stop a counter', phase:'defend', ball:{x:36,d:42},
    text:f => `The other team broke through the middle. ${f.counter} Delay first, tackle once help arrives.`},
@@ -398,12 +444,18 @@ const SCEN = [
   {key:'corner-att', group:'set', label:'Our corner kick', phase:'attack', ball:{x:67.3,d:104.3}, flippable:true,
    text:f => `Corner from the right. One player takes it. Runners attack the near post, the far post and the middle of the six-yard box, one crashes the penalty spot, one offers a short corner, and one waits at the top of the box for clearances. ${f.up ? `The ${NAMES[f.up].toLowerCase()} goes up to win the header. ` : ''}Three defenders and the goalkeeper stay home to stop a counter. Tap a player to see their spot.`,
    gk:[34,24,'Edge of our box, ready to sweep a long clearance'],
+   text6:f => `Corner from the right. One player takes it, runners attack the near and far posts, and one waits at the top of the box for clearances. At least one defender stays home with the goalkeeper to stop a counter. Tap a player to see their spot.`,
+   spots6:[[34,50,'Staying home at halfway to stop a counter'], [34,86,'Top of the box: win the clearance or shoot on a rebound'],
+           [29,99,'Attacking the far post'], [39,100,'Attacking the near post'], [66.5,103.4,'Taking the corner']],
    spots:[[20,58,'Staying home, marking their outlet on this side'], [34,52,'Last defender at halfway, organizing the rest defense'], [48,58,'Staying home, marking their outlet on this side'],
           [36,98,'Up for the corner: attack the ball in the middle of the six-yard box',87,true], [24,86,'Top of the box: win the clearance or shoot on a rebound',90],
           [34,94,'Crashing the penalty spot'], [60,95,'Short-corner option near the ball'], [29,99,'Attacking the far post'], [39,100,'Attacking the near post'], [66.5,103.4,'Taking the corner']]},
   {key:'corner-def', group:'set', label:'Their corner kick', phase:'defend', ball:{x:0.7,d:0.7}, flippable:true,
    text:f => `Corner from our left. Defenders guard the near post, the far post and the middle of the six-yard box, and one player marks their best header near the penalty spot. One player stands 10 yards from the ball to block a short corner, midfielders mark runners, two players wait at the top of the box for second balls, and one stays high as the outlet for a counter. Tap a player to see their spot.`,
    gk:[34.5,1,'Middle of the goal, a step toward the far post; claim anything in the six-yard box'],
+   text6:f => `Corner from our left. One defender guards the near post and another marks their best header in front of goal. One player blocks the short corner, one marks a runner at the far side, and one stays high as the outlet for a counter. Tap a player to see their spot.`,
+   spots6:[[30.1,2.4,'On the near post'], [34,8,'Marking their best header in front of goal'], [12,12,'Blocking the short corner'],
+           [40,12,'Marking a runner at the far side of the box'], [42,40,'Outlet near halfway for the counter-attack']],
    spots:[[30.1,2.4,'On the near post'], [34,6,'Middle of the six-yard box: clear anything at head height'], [38.9,2.4,'On the far post'],
           [35,10,'Marking their best header near the penalty spot'], [7.2,7.2,'Standing 10 yards from the ball to block a short corner',11.5],
           [30,12,'Marking a runner between the near post and the spot'], [41,11,'Marking a runner at the far side of the box'],
@@ -411,12 +463,18 @@ const SCEN = [
   {key:'gk-ours', group:'set', label:'Our goal kick', phase:'attack', ball:{x:28,d:5.3},
    text:f => `Playing out from the back. Defenders split wide to the edges of the box and one slides across the goal area. One player stands at the top of the box, facing the goalkeeper, as the main short option. Midfielders spread across the field about 35 m out, and the strikers stretch the other team near halfway. If they press high, the goalkeeper can go long instead.`,
    gk:[28,3.5,'Taking the goal kick: short to a defender or the player at the top of the box'],
+   text6:f => `Playing out from the back. Two players split wide to the edges of the box, one shows in the middle, and the front players stretch the other team. If they press high, the goalkeeper can go long instead.`,
+   spots6:[[10,15,'Wide at the edge of the box for a short pass'], [58,15,'Wide at the edge of the box for a short pass'], [34,40,'Middle of the field, showing for the ball'],
+           [10,58,'High and wide, stretching their defense'], [58,58,'High and wide, stretching their defense']],
    spots:[[6,17,'Wide at the edge of the box for a short pass'], [43,9,'Across the goal area as the safe short option'], [62,17,'Wide at the edge of the box for a short pass'],
           [34,22,'Top of the box, facing the goalkeeper to receive and turn'], [8,36,'Wide on the touchline to take the next pass'], [30,36,'Center of the field, showing for the ball'],
           [60,36,'Wide on the touchline to take the next pass'], [6,58,'High and wide, stretching their defense'], [34,62,'Target for a long kick if the short options are covered'], [62,58,'High and wide, stretching their defense']]},
   {key:'gk-theirs', group:'set', label:'Their goal kick', phase:'defend', ball:{x:40,d:99.7},
    text:f => `Their goal kick. We have to stay outside their box until the ball is kicked. The front players set up at the edge of the box to press whoever receives. Midfield marks the short options behind them, and the back line pushes up near halfway to keep the team compact. If they kick it long, our central defenders win the header.`,
    gk:[34,20,'Top of our box, ready to sweep a long kick'],
+   text6:f => `Their goal kick. We have to stay outside their box until the ball is kicked. Front players wait at the edge of their box to press whoever receives, one player marks the middle, and the defenders hold near halfway to win a long kick.`,
+   spots6:[[22,46,'Near halfway, marking their forward'], [46,46,'Near halfway, marking their forward'], [34,62,'Marking the player in the middle'],
+           [18,84,'Edge of their box, ready to press'], [50,84,'Edge of their box, ready to press']],
    spots:[[16,48,'Pushed up near halfway, marking their winger'], [34,44,'Deepest defender, covering the long ball'], [52,48,'Pushed up near halfway, marking their winger'],
           [34,54,'Marking their center forward to win the long kick'], [14,66,'Marking their wide player'], [32,70,'Marking their center midfielder'], [54,66,'Marking their wide player'],
           [14,84,'Edge of the box, ready to press their right defender'], [36,87,'Edge of the box, ready to press the first pass'], [56,84,'Edge of the box, ready to press their left defender']]},
@@ -434,6 +492,10 @@ const Y = d => L - d;
 const dist = (a,b) => Math.hypot(a.x-b.x, a.d-b.d);
 const byUnit = u => PLAYERS.filter(p => p.unit === u).sort((a, b) => a.x - b.x);
 const has = id => PLAYERS.some(p => p.id === id);
+const nameOf = id => PLAYERS.find(p => p.id === id).name.toLowerCase();
+// every distance is computed on the full-size drawing; show it in the chosen field's real meters
+const toM = v => Math.max(1, Math.round(v * F.scale));
+const scaleM = str => F.scale === 1 ? str : str.replace(/(\d+(?:\.\d+)?)(?:–(\d+(?:\.\d+)?))? m\b/g, (_, a, b) => b ? `${toM(+a)}–${toM(+b)} m` : `${toM(+a)} m`);
 // average rank of each value (ties share a rank)
 const ranks = v => v.map(a => v.filter(b => b < a).length + (v.filter(b => b === a).length - 1) / 2);
 
@@ -462,7 +524,7 @@ function setAssign(sc, flip){
   const out = {};
   const [gx, gtag] = mir(sc.gk[0], sc.gk[2]);
   out.GK = {x:gx, d:sc.gk[1], tag:gtag};
-  const spots = sc.spots.map(s => { const [x, tag] = mir(s[0], s[2]); return {x, d:s[1], tag, r:s[3] ?? s[1], up:!!s[4]}; });
+  const spots = (F.small ? sc.spots6 : sc.spots).map(s => { const [x, tag] = mir(s[0], s[2]); return {x, d:s[1], tag, r:s[3] ?? s[1], up:!!s[4]}; });
   const field = PLAYERS.filter(p => p.unit !== 'gk');
   // players rank by line (whole units tie), so side of the field decides within a line
   const pr = ranks(field.map(p => LINE_ORDER[p.unit])), sr = ranks(spots.map(s => s.r));
@@ -474,7 +536,7 @@ function setAssign(sc, flip){
 
 // Rebound spots near their goal, by how many forwards / midfielders the formation has: [x offset, d]
 const BOX_FWD = {2:[[-5,95],[5,95]], 3:[[-8,94],[0,96.5],[8,94]], 4:[[-10,93],[-3.5,96],[3.5,96],[10,93]]};
-const BOX_MID = {2:[[-7,83],[7,83]], 3:[[-12,84],[0,82],[12,84]], 4:[[-16,83],[-6,82],[6,82],[16,83]]};
+const BOX_MID = {1:[[0,82]], 2:[[-7,83],[7,83]], 3:[[-12,84],[0,82],[12,84]], 4:[[-16,83],[-6,82],[6,82],[16,83]]};
 const CRASH = {1:[0], 2:[-6,6], 3:[-8,0,8]};
 
 function compute(){
@@ -489,7 +551,7 @@ function compute(){
   }
   const buildUp = A && b.d < 24;
   for (const p of PLAYERS){
-    const u = U[p.unit], i = A ? 0 : 1;
+    const u = F.U[p.unit], i = A ? 0 : 1;
     let bx = p.x, bd = p.d;
     if (p.unit !== 'gk'){
       const w = A ? (buildUp && p.unit === 'def' ? 1.4 : u.wA) : .8;
@@ -529,7 +591,8 @@ function compute(){
     const s = Math.sign(b.x - 34);
     const outer = arr => s > 0 ? arr[arr.length - 1] : arr[0];
     let crosser = outer(FW);
-    if (Math.abs(crosser.x - 34) < 20) crosser = outer(MD);
+    const wideMid = MD.length ? outer(MD) : null;
+    if (Math.abs(crosser.x - 34) < 20 && wideMid && s * (wideMid.x - 34) > s * (crosser.x - 34)) crosser = wideMid;
     const ob = onBall(); put(crosser.id, ob.x, ob.d, 'On the ball, ready to cross');
     const cand = [...FW, ...MD].filter(p => p.id !== crosser.id);
     const spots = [[34 + s * 4, 96, 'Attacking the near post'], [34 - s * 7, 95, 'Attacking the far post'],
@@ -554,14 +617,14 @@ function compute(){
     const stepping = step && who === step.who;
     if (who){
       const ob = onBall();
-      put(who, ob.x, ob.d, A ? 'On the ball' : (stepping ? `Stepping up to the ball; the ${step.coverName} covers` : 'Pressing the ball'));
+      put(who, ob.x, ob.d, A ? 'On the ball' : (stepping ? (step.cover ? `Stepping up to the ball; the ${nameOf(step.cover)} covers` : 'Stepping up to the ball; the outside defenders pinch in') : 'Pressing the ball'));
     }
     if (A && b.d > 82 && who && PLAYERS.find(q => q.id === who).unit === 'fwd'){
       const rest = FW.filter(p => p.id !== who), offs = CRASH[rest.length] || [];
       rest.forEach((p, i) => put(p.id, 34 + offs[i] + (b.x - 34) * .1, 95,
         offs[i] < 0 ? 'Crashing the goal on the left side for a rebound' : offs[i] > 0 ? 'Crashing the goal on the right side for a rebound' : 'Crashing the middle of the goal for a rebound'));
     }
-    if (stepping) put(step.cover, 34 + (b.x - 34) * .3, clamp(b.d - 14, 8, 24), `Covering behind the ${step.whoName}`);
+    if (stepping && step.cover) put(step.cover, 34 + (b.x - 34) * .3, clamp(b.d - 14, 8, 24), `Covering behind the ${nameOf(step.who)}`);
   }
   return t;
 }
@@ -804,11 +867,11 @@ function drawCoverage(){
   });
 }
 function covText(p){
-  if (p.id === 'GK') return 'the whole penalty box, from the goal line out to 16.5 m (18 yards) and 40 m wide. Anything in the box is the keeper\'s ball.';
+  if (p.id === 'GK') return F.small ? 'the whole penalty box. Anything in the box is the keeper\'s ball.' : 'the whole penalty box, from the goal line out to 16.5 m (18 yards) and 40 m wide. Anything in the box is the keeper\'s ball.';
   const o = COV[p.id].open, ds = o.map(q => q.d), xs = o.map(q => q.x);
   const dmin = Math.round(Math.min(...ds)), dmax = Math.round(Math.max(...ds));
   const w = Math.round(Math.max(...xs) - Math.min(...xs));
-  return `in open play, from ${dmin} m to ${dmax} m up the field from our goal line, across about ${w} m of the field's 68 m width.`;
+  return `in open play, from ${dmin} m to ${dmax} m up the field from our goal line, across about ${w} m of the field's 68 m width.`.replace(/(\d+) m/g, (_, v) => `${toM(+v)} m`);
 }
 const vLive = document.getElementById('v-live'), vCov = document.getElementById('v-cov');
 function setView(v){
@@ -832,13 +895,13 @@ function describe(){
 }
 function renderNote(){
   const s = SCEN.find(x => x.key === state.scen);
-  let [t, p] = s ? [s.label, s.text(F)] : describe();
+  let [t, p] = s ? [s.label, ((F.small && s.text6) || s.text)(F)] : describe();
   if (state.view === 'cov'){ const pl = PLAYERS.find(x => x.id === state.sel); t = `Coverage: ${pl.name}`; p = pl.id === 'GK' ? `The shaded zone is the goalkeeper's area: the whole penalty box. Diamonds mark their spots on corners and goal kicks. Tap another player to compare.` : `The shaded zone is everywhere the ${pl.name.toLowerCase()} ends up in open play, across every ball position, attacking and defending. Diamonds mark their spots on corners and goal kicks. The players stay live, so you can still pick a situation or drag the ball. Tap another player to compare.`; }
   if (s && state.flip){ p = swapLR(p); t += ' (other side)'; }
   flipBtn.hidden = !(s && s.flippable);
   svg.classList.toggle('tight', !!(s && s.spots));
   document.getElementById('n-title').textContent = t;
-  document.getElementById('n-text').textContent = p;
+  document.getElementById('n-text').textContent = scaleM(p);
   document.querySelectorAll('.scen button').forEach(b => b.setAttribute('aria-pressed', b.dataset.key === state.scen));
 }
 function renderRole(){
@@ -849,14 +912,14 @@ function renderRole(){
     const parts = [];
     if (Math.abs(dd) >= 2) parts.push(`${Math.round(Math.abs(dd))} m ${dd > 0 ? 'up the field' : 'back toward goal'}`);
     if (Math.abs(dx) >= 2) parts.push(`${Math.round(Math.abs(dx))} m to the ${dx > 0 ? 'right' : 'left'}`);
-    now = parts.length ? `Moved ${parts.join(' and ')} from home` : 'Holding the home spot';
+    now = parts.length ? scaleM(`Moved ${parts.join(' and ')} from home`) : 'Holding the home spot';
   }
   document.getElementById('role').innerHTML = `
     <div class="role-head"><div class="role-num">${p.n}</div><div><h3>${p.name}</h3><p>${r.sub || UNIT_NAME[p.unit]}</p></div></div>
     <div class="role-now"><b>Right now:</b> ${now}</div>${state.view === 'cov' ? `<div class="role-now" style="border-top:1px solid var(--line)"><b>Coverage:</b> ${covText(p)}</div>` : ''}
     <div class="role-body">
-      <div><h4>We have the ball</h4><ul>${r.att.map(x => `<li>${x}</li>`).join('')}</ul></div>
-      <div><h4>They have the ball</h4><ul>${r.def.map(x => `<li>${x}</li>`).join('')}</ul></div>
+      <div><h4>We have the ball</h4><ul>${r.att.map(x => `<li>${scaleM(x)}</li>`).join('')}</ul></div>
+      <div><h4>They have the ball</h4><ul>${r.def.map(x => `<li>${scaleM(x)}</li>`).join('')}</ul></div>
     </div>
     <div class="cue"><b>Coaching cue</b>“${r.cue}”</div>`;
   chips.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === state.sel));
@@ -876,9 +939,9 @@ function renderStats(){
   const fwds = FW.map(p => tgt[p.id].d);
   const xs = PLAYERS.filter(p => p.unit !== 'gk').map(p => tgt[p.id].x);
   const back = Math.min(...defs);
-  document.getElementById('s-back').innerHTML = `${Math.round(back)}<small>m from goal</small>`;
-  document.getElementById('s-len').innerHTML = `${Math.round(Math.max(...fwds) - back)}<small>m</small>`;
-  document.getElementById('s-wid').innerHTML = `${Math.round(Math.max(...xs) - Math.min(...xs))}<small>m</small>`;
+  document.getElementById('s-back').innerHTML = `${toM(back)}<small>m from goal</small>`;
+  document.getElementById('s-len').innerHTML = `${toM(Math.max(...fwds) - back)}<small>m</small>`;
+  document.getElementById('s-wid').innerHTML = `${toM(Math.max(...xs) - Math.min(...xs))}<small>m</small>`;
 }
 function select(id){ state.sel = id; renderRole(); renderNote(); }
 
@@ -919,15 +982,22 @@ function update(){
 
 /* ---------- formation picker ---------- */
 const fSel = document.getElementById('formation');
-FORMATIONS.forEach(([key, label]) => { const o = document.createElement('option'); o.value = key; o.textContent = label; fSel.appendChild(o); });
+[['11 v 11', FORMATIONS.map(([key, label]) => ({key, label}))], ['6 v 6', SMALL]].forEach(([name, list]) => {
+  const g = document.createElement('optgroup'); g.label = name;
+  list.forEach(({key, label}) => { const o = document.createElement('option'); o.value = key; o.textContent = label; g.appendChild(o); });
+  fSel.appendChild(g);
+});
 function setFormation(key){
   F = buildFormation(key);
   PLAYERS = F.players; DF = byUnit('def'); MD = byUnit('mid'); FW = byUnit('fwd');
   fSel.value = key;
   document.getElementById('f-title').textContent = F.title;
   document.getElementById('f-lede').textContent = F.lede;
+  document.getElementById('f-eyebrow').textContent = F.small ? 'Tactics board · 6 v 6 · Small-sided field' : 'Tactics board · 11 v 11 · Ages 9–12';
+  document.getElementById('p-count').textContent = F.small ? 'five' : 'ten';
+  document.getElementById('p-short').textContent = scaleM('35–45 m');
   document.getElementById('p-step').innerHTML = `<h3>${F.principle[0]}</h3><p>${F.principle[1]}</p>`;
-  document.title = `${F.label} · Soccer Tactics Board`;
+  document.title = `${F.small ? '6v6 ' : ''}${F.label} · Soccer Tactics Board`;
   if (!has(state.sel)) state.sel = ['SP','SW','CB','LCB'].find(has);
   buildPlayers(); buildChips();
   if (state.view === 'cov') sampleCoverage();
@@ -936,7 +1006,7 @@ function setFormation(key){
 fSel.onchange = () => { setFormation(fSel.value); update(); };
 
 // start from the formation in the link, then the viewer's last pick, then the default
-const valid = k => FORMATIONS.some(f => f[0] === k);
+const valid = k => FORMATIONS.some(f => f[0] === k) || SMALL.some(f => f.key === k);
 let startKey = location.hash.slice(1);
 if (!valid(startKey)){ try { startKey = localStorage.getItem('formation'); } catch (e) { startKey = null; } }
 setFormation(valid(startKey) ? startKey : DEFAULT_FORMATION);
