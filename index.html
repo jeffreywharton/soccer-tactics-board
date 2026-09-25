@@ -48,6 +48,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,6vw,52px);lin
 .pitch-box{border-radius:12px;overflow:hidden;background:var(--pitch);touch-action:none;user-select:none;-webkit-user-select:none}
 svg#pitch{display:block;width:100%;height:auto;cursor:crosshair}
 .ctrl{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+.ctrl[hidden]{display:none}
 .ctrl-l{font:600 12px/1 var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .hint{font-size:14px;color:var(--muted);margin:0}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -156,6 +157,13 @@ svg.cov .pl:not(.sel){opacity:.35}
         <svg id="pitch" viewBox="-7 -10 82 125" aria-label="Soccer field with 11 players and a ball. Tap the field to move the ball."></svg>
       </div>
       <div class="ctrl">
+        <span class="ctrl-l">Drag</span>
+        <div class="seg" role="group" aria-label="What you drag">
+          <button id="d-ball" type="button" aria-pressed="true">Ball</button>
+          <button id="d-player" type="button" aria-pressed="false">Player</button>
+        </div>
+      </div>
+      <div class="ctrl" id="ctrl-ball">
         <span class="ctrl-l">Ball control</span>
         <div class="seg" role="group" aria-label="Ball control">
           <button id="m-abs" type="button" aria-pressed="true">Ball at finger</button>
@@ -506,9 +514,10 @@ const SCEN = [
           [14,84,'Edge of the box, ready to press their right defender'], [36,87,'Edge of the box, ready to press the first pass'], [56,84,'Edge of the box, ready to press their left defender']]},
 ];
 
-const state = {view:'live', flip:false, phase:'attack', ball:{x:34,d:52.5}, scen:'home', sel:'CB', showHome:true, showLines:true};
+// drag: 'ball' or 'player'. carrier: the player being dragged in player mode (carries the ball, or presses it on defense)
+const state = {view:'live', flip:false, phase:'attack', ball:{x:34,d:52.5}, scen:'home', sel:'CB', showHome:true, showLines:true, drag:'ball', carrier:null};
 let F = null, PLAYERS = [], DF = [], MD = [], FW = [];
-const cur = {}; let tgt = {}; let tags = {};
+const cur = {}; let tgt = {}; let tags = {}; let jobs = {};
 const ballCur = {x:34, d:52.5};
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -567,7 +576,7 @@ const CRASH = {1:[0], 2:[-6,6], 3:[-8,0,8]};
 
 function compute(){
   const A = state.phase === 'attack', b = state.ball, t = {};
-  tags = {};
+  tags = {}; jobs = {};
   const sc = SCEN.find(s => s.key === state.scen);
   if (sc && sc.home){ PLAYERS.forEach(p => t[p.id] = {x:p.x, d:p.d}); return t; }
   if (sc && sc.spots){
@@ -612,6 +621,8 @@ function compute(){
       if (piv) put(piv.id, 34 + (b.x - 34) * .3, clamp(b.d + 14, 18, 32), 'Dropping in to take the first pass');
     }
   }
+  // player mode: the dragged player is on the ball (our ball) or pressing it (their ball)
+  const carrier = state.drag === 'player' && state.carrier && has(state.carrier) ? state.carrier : null;
   const crossZone = A && b.d >= 82 && Math.abs(b.x - 34) >= 16;
   if (crossZone){
     const s = Math.sign(b.x - 34);
@@ -619,8 +630,10 @@ function compute(){
     let crosser = outer(FW);
     const wideMid = MD.length ? outer(MD) : null;
     if (Math.abs(crosser.x - 34) < 20 && wideMid && s * (wideMid.x - 34) > s * (crosser.x - 34)) crosser = wideMid;
+    if (carrier) crosser = PLAYERS.find(p => p.id === carrier);
     const ob = onBall(); put(crosser.id, ob.x, ob.d, 'On the ball, ready to cross');
-    const cand = [...FW, ...MD].filter(p => p.id !== crosser.id);
+    // at most six runners; if a defender is crossing, the deepest attacker stays out
+    const cand = [...FW, ...MD].filter(p => p.id !== crosser.id).sort((p, q) => t[q.id].d - t[p.id].d).slice(0, 6);
     const spots = [[34 + s * 4, 96, 'Attacking the near post'], [34 - s * 7, 95, 'Attacking the far post'],
                    [34 + s * 1, 86, 'Top of the box for the cutback'], [b.x - s * 7, b.d - 10, 'Support behind the crosser'],
                    [34 - s * 12, 84, 'Waiting for the rebound or cutback'], [34 - s * 1, 92, 'Attacking the penalty spot']].slice(0, cand.length);
@@ -628,9 +641,9 @@ function compute(){
     cand.forEach((p, i) => put(p.id, ...spots[a[i]]));
   }
   if (!crossZone){
-    const step = !A && F.step ? F.step(b) : null;
-    let who = null;
-    if (step && Math.abs(b.x - 34) < 16 && b.d > 20 && b.d < 45) who = step.who;
+    const step = !A && F.step && !carrier ? F.step(b) : null;
+    let who = carrier;
+    if (!who && step && Math.abs(b.x - 34) < 16 && b.d > 20 && b.d < 45) who = step.who;
     if (!who){
       let best = 1e9;
       for (const p of PLAYERS){
@@ -651,6 +664,29 @@ function compute(){
         offs[i] < 0 ? 'Crashing the goal on the left side for a rebound' : offs[i] > 0 ? 'Crashing the goal on the right side for a rebound' : 'Crashing the middle of the goal for a rebound'));
     }
     if (stepping && step.cover) put(step.cover, 34 + (b.x - 34) * .3, clamp(b.d - 14, 8, 24), `Covering behind the ${nameOf(step.who)}`);
+
+    // Our ball, player carrying it: the nearest teammate comes short behind and inside, the most advanced striker runs in behind
+    if (carrier && A && b.d < 82){
+      const inside = b.x < 34 ? 1 : -1, spot = {x: b.x + inside * 9, d: b.d - 8};
+      const sup = PLAYERS.filter(p => !fixed.has(p.id) && p.unit !== 'gk').sort((p, q) => dist(t[p.id], spot) - dist(t[q.id], spot))[0];
+      if (sup){ put(sup.id, spot.x, spot.d, 'Short support: an easy pass back and inside'); jobs.support = sup.id; }
+      const run = FW.filter(p => !fixed.has(p.id) && t[p.id].d > b.d).sort((p, q) => t[q.id].d - t[p.id].d)[0];
+      if (run){ put(run.id, t[run.id].x + (b.x - t[run.id].x) * .15, Math.min(t[run.id].d + 6, 97), 'Running in behind for a pass forward'); jobs.run = run.id; }
+    }
+    // Their ball, player pressing it: pressure, cover, balance
+    if (carrier && !A){
+      const pr = t[carrier], gx = 34 - b.x, gd = -b.d, len = Math.hypot(gx, gd) || 1;
+      const spot = {x: pr.x + gx / len * 8, d: Math.max(3, pr.d + gd / len * 8)};
+      const cov = PLAYERS.filter(p => !fixed.has(p.id) && p.unit !== 'gk' && p.unit !== 'fwd').sort((p, q) => dist(t[p.id], spot) - dist(t[q.id], spot))[0];
+      if (cov){ put(cov.id, spot.x, spot.d, `Cover: behind the ${nameOf(carrier)} at an angle, ready if the attacker gets past`); jobs.cover = cov.id; }
+      // balance comes from a defender on the far side of the ball, never one already beside it
+      const far = PLAYERS.filter(p => !fixed.has(p.id) && ['def', 'swp', 'stp'].includes(p.unit) && Math.abs(t[p.id].x - b.x) > 15).sort((p, q) => Math.abs(t[q.id].x - b.x) - Math.abs(t[p.id].x - b.x))[0];
+      if (far){ const q = t[far.id]; put(far.id, q.x + (34 - q.x) * .35 + (b.x - 34) * .1, q.d, 'Balance: tucked in to protect the middle'); jobs.balance = far.id; }
+    }
+  }
+  if (carrier){
+    tags[carrier] = A ? (tags[carrier] || 'On the ball') : 'Pressure: goes to the ball and slows it down';
+    jobs.carrier = carrier;
   }
   return t;
 }
@@ -726,19 +762,24 @@ function buildPlayers(){
     el('circle', {class:'disc', r:2.6}, gi);
     el('text', {y:.1}, gi).textContent = p.n;
     el('text', {class:'lbl', y:4.6}, gi).textContent = p.id === 'SP' ? 'STP' : p.id;
-    g.addEventListener('pointerdown', e => { e.stopPropagation(); select(p.id); });
+    // in player mode the field handles the press so the player can be dragged
+    g.addEventListener('pointerdown', e => { if (state.drag === 'player') return; e.stopPropagation(); select(p.id); });
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); select(p.id); } });
     plEls[p.id] = g;
     if (!cur[p.id]) cur[p.id] = {x:p.x, d:p.d};
   });
 }
+// the opponent on the ball, shown when they have it
+const oppG = el('g', {'pointer-events':'none'}, svg);
+el('circle', {r:2.4, fill:'#D6453D', stroke:'#fff', 'stroke-width':.35}, oppG);
+el('text', {y:.1, 'text-anchor':'middle', 'dominant-baseline':'central', fill:'#fff', 'font-family':'var(--display)', 'font-weight':700, 'font-size':2.1}, oppG).textContent = 'THEM';
 const ballG = el('g', {style:'cursor:grab'}, svg);
 el('circle', {r:1.35, fill:'#fff', stroke:'#111', 'stroke-width':.25}, ballG);
 el('path', {d:'M0 -.55 L.52 -.17 L.32 .45 L-.32 .45 L-.52 -.17 Z', fill:'#111'}, ballG);
 
 /* ---------- interaction ---------- */
 // touch devices default to "move with finger"; a choice the viewer made before wins
-let dragging = false, grab = null;
+let dragging = false, grab = null, pgrab = null;
 let ctrl = matchMedia('(hover: none) and (pointer: coarse)').matches ? 'rel' : 'abs';
 try { const saved = localStorage.getItem('ballCtrlPick'); if (saved === 'abs' || saved === 'rel') ctrl = saved; } catch (e) {}
 function rawField(e){
@@ -749,7 +790,19 @@ function rawField(e){
 const clampBall = b => ({x:clamp(b.x, 1, W-1), d:clamp(b.d, 1, L-1)});
 function toField(e){ return clampBall(rawField(e)); }
 svg.addEventListener('pointerdown', e => {
-  stopPlay(); dragging = true; svg.setPointerCapture(e.pointerId);
+  stopPlay();
+  if (state.drag === 'player'){
+    // grab the nearest field player within reach of the finger
+    const f = rawField(e);
+    const near = PLAYERS.map(p => ({p, dd: Math.hypot(cur[p.id].x - f.x, cur[p.id].d - f.d)})).sort((a, b) => a.dd - b.dd)[0];
+    if (!near || near.dd > 7) return;
+    if (near.p.unit === 'gk'){ select('GK'); return; }   // the keeper can be tapped for their card, not dragged
+    dragging = true; svg.setPointerCapture(e.pointerId);
+    pgrab = {id: near.p.id, f, off: {x: cur[near.p.id].x - f.x, d: cur[near.p.id].d - f.d}, moved: false};
+    select(near.p.id);
+    return;
+  }
+  dragging = true; svg.setPointerCapture(e.pointerId);
   if (ctrl === 'abs'){
     state.ball = toField(e); ballCur.x = state.ball.x; ballCur.d = state.ball.d;
     state.scen = 'custom'; update();
@@ -759,6 +812,17 @@ svg.addEventListener('pointerdown', e => {
 });
 svg.addEventListener('pointermove', e => {
   if (!dragging) return;
+  if (pgrab){
+    const f = rawField(e);
+    if (!pgrab.moved && Math.hypot(f.x - pgrab.f.x, f.d - pgrab.f.d) < .6) return;
+    pgrab.moved = true;
+    // the player sits just behind the ball: ball = player spot + 2.6 m up the field
+    const pos = {x: clamp(f.x + pgrab.off.x, 1, W - 1), d: clamp(f.d + pgrab.off.d, 1, L - 3.6)};
+    state.carrier = pgrab.id; state.ball = {x: pos.x, d: pos.d + 2.6};
+    ballCur.x = state.ball.x; ballCur.d = state.ball.d;
+    state.scen = 'custom'; update();
+    return;
+  }
   if (ctrl === 'abs'){ state.ball = toField(e); ballCur.x = state.ball.x; ballCur.d = state.ball.d; update(); return; }
   const f = rawField(e), dx = f.x - grab.f.x, dd = f.d - grab.f.d;
   if (!grab.moved && Math.hypot(dx, dd) < .6) return;
@@ -770,22 +834,41 @@ svg.addEventListener('pointermove', e => {
   state.scen = 'custom'; update();
 });
 const mAbs = document.getElementById('m-abs'), mRel = document.getElementById('m-rel'), hintEl = document.getElementById('hint');
+function setHint(){
+  hintEl.textContent = state.drag === 'player'
+    ? (state.phase === 'attack'
+      ? 'Drag any player and they carry the ball. Watch who comes short to support and who runs in behind.'
+      : 'Drag any player to press the attacker (red). Watch who covers behind them and who tucks in for balance.')
+    : ctrl === 'abs'
+      ? 'Touch or drag anywhere on the field and the ball goes exactly there. Tap a player to see their job.'
+      : 'Drag anywhere on the field and the ball moves the same way your finger does, from wherever it is now. Tap a player to see their job.';
+}
 function setCtrl(m, save){
   ctrl = m;
   mAbs.setAttribute('aria-pressed', m === 'abs'); mRel.setAttribute('aria-pressed', m === 'rel');
-  hintEl.textContent = m === 'abs'
-    ? 'Touch or drag anywhere on the field and the ball goes exactly there. Tap a player to see their job.'
-    : 'Drag anywhere on the field and the ball moves the same way your finger does, from wherever it is now. Tap a player to see their job.';
+  setHint();
   if (save){ try { localStorage.setItem('ballCtrlPick', m); } catch (e) {} }
 }
 mAbs.onclick = () => setCtrl('abs', true); mRel.onclick = () => setCtrl('rel', true);
 setCtrl(ctrl);
-const endDrag = () => { dragging = false; grab = null; };
+const dBall = document.getElementById('d-ball'), dPlayer = document.getElementById('d-player');
+function setDrag(m){
+  state.drag = m;
+  dBall.setAttribute('aria-pressed', m === 'ball'); dPlayer.setAttribute('aria-pressed', m === 'player');
+  document.getElementById('ctrl-ball').hidden = m === 'player';
+  svg.style.cursor = m === 'player' ? 'grab' : '';
+  if (m === 'ball') state.carrier = null;
+  setHint(); update();
+}
+dBall.onclick = () => { stopPlay(); setDrag('ball'); };
+dPlayer.onclick = () => { stopPlay(); setDrag('player'); };
+const endDrag = () => { dragging = false; grab = null; pgrab = null; };
 svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
 
 const bAtt = document.getElementById('ph-att'), bDef = document.getElementById('ph-def');
 function setPhase(ph){
   state.phase = ph;
+  if (typeof setHint === 'function') setHint();
   bAtt.setAttribute('aria-pressed', ph === 'attack'); bDef.setAttribute('aria-pressed', ph === 'defend');
 }
 bAtt.onclick = () => { stopPlay(); setPhase('attack'); if (state.scen !== 'custom') state.scen = 'custom'; update(); };
@@ -803,7 +886,7 @@ SCEN.forEach(s => {
 });
 function loadScen(key){
   const s = SCEN.find(x => x.key === key);
-  state.flip = false; state.scen = key; state.ball = {...s.ball}; setPhase(s.phase); update();
+  state.flip = false; state.scen = key; state.ball = {...s.ball}; state.carrier = null; setPhase(s.phase); update();
 }
 
 const chips = document.getElementById('chips');
@@ -845,6 +928,7 @@ function sampleCoverage(){
   if (COVS[F.key]){ COV = COVS[F.key]; return; }
   COV = COVS[F.key] = {};
   const save = JSON.stringify(state);
+  state.carrier = null;
   PLAYERS.forEach(p => COV[p.id] = {open:[], set:[]});
   for (const ph of ['attack','defend']) for (let x = 3; x <= 65; x += 4) for (let d = 3; d <= 102; d += 4){
     state.phase = ph; state.ball = {x, d}; state.scen = 'custom';
@@ -914,6 +998,19 @@ vCov.onclick = () => setView('cov');
 /* ---------- rendering ---------- */
 function describe(){
   const b = state.ball, A = state.phase === 'attack';
+  if (jobs.carrier){
+    const n = id => nameOf(id), c = n(jobs.carrier), cap = x => x[0].toUpperCase() + x.slice(1);
+    if (A) return [`Our ball: the ${c} carries it`, [
+      `The ${c} has the ball.`,
+      jobs.support ? `The ${n(jobs.support)} comes short behind and inside for an easy pass.` : '',
+      jobs.run ? `The ${n(jobs.run)} runs in behind for a pass forward.` : '',
+      'Everyone else spreads out to make the field big, and the back line follows the play up the field.'].filter(Boolean).join(' ')];
+    return [`Their ball: the ${c} presses`, [
+      `Pressure: the ${c} goes to the ball and slows the attacker down.`,
+      jobs.cover ? `Cover: the ${n(jobs.cover)} drops in behind at an angle, ready if the attacker gets past.` : '',
+      jobs.balance ? `Balance: the ${n(jobs.balance)} tucks in to protect the middle.` : '',
+      'Everyone else slides toward the ball and gets goal-side.'].filter(Boolean).join(' ')];
+  }
   const third = b.d < 35 ? 'defensive third' : b.d < 70 ? 'middle third' : 'attacking third';
   const side = b.x < 22 ? 'on the left' : b.x > 46 ? 'on the right' : 'in the middle';
   if (A) return [`Our ball, ${third}`, `The ball is ${side} of our ${third}. Spread out, push the back line up behind the play, and give the player on the ball a short option, a wide option and a forward run. Players on the far side come inside toward goal.`];
@@ -984,6 +1081,8 @@ function drawFrame(){
   lines.mid.setAttribute('points', pts(ids(MD)));
   lines.fwd.setAttribute('points', pts(ids(FW)));
   ballG.setAttribute('transform', `translate(${ballCur.x.toFixed(2)} ${Y(ballCur.d).toFixed(2)})`);
+  oppG.style.display = state.phase === 'defend' ? '' : 'none';
+  oppG.setAttribute('transform', `translate(${ballCur.x.toFixed(2)} ${Y(Math.min(ballCur.d + 2.4, L + 1)).toFixed(2)})`);
 }
 let raf = null;
 function tick(){
@@ -991,7 +1090,9 @@ function tick(){
   const k = reduce ? 1 : .11;
   PLAYERS.forEach(p => {
     const c = cur[p.id], t = tgt[p.id];
-    c.x += (t.x - c.x) * k; c.d += (t.d - c.d) * k;
+    // the dragged player stays under the finger
+    const kp = pgrab && pgrab.moved && pgrab.id === p.id ? 1 : k;
+    c.x += (t.x - c.x) * kp; c.d += (t.d - c.d) * kp;
     if (Math.abs(t.x - c.x) > .02 || Math.abs(t.d - c.d) > .02) moving = true;
   });
   const kb = reduce ? 1 : (dragging ? .5 : .18);
