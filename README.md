@@ -36,7 +36,7 @@ The page remembers the last formation picked, and the link updates (for example 
 ## Features
 
 - **Live positions:** place the ball at your finger, or move it relative to how your finger moves (the default on phones and tablets).
-- **Drag a player:** switch **Drag** from Ball to Player and move any field player.
+- **Drag a player:** switch **Drag** from Ball to Player and move any field player. **Player control** works like ball control: *Player at finger* sends the picked player to wherever you touch, and *Move with finger* moves them the same way your finger moves (the default on phones and tablets). Tap a player to pick them.
   - *We have the ball:* that player carries it. A teammate comes short behind and inside for an easy pass, and the most advanced striker runs in behind.
   - *They have the ball:* that player presses the attacker (shown in red). A teammate drops in behind at an angle to cover, and a far-side defender tucks in for balance.
 - **Situations:** starting shape, building from the back, attacking down the right, shooting at their goal (strikers crash in for rebounds), crossing from the left, defending your right side, the high press, and stopping a counter.

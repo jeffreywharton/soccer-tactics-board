@@ -170,6 +170,13 @@ svg.cov .pl:not(.sel){opacity:.35}
           <button id="m-rel" type="button" aria-pressed="false">Move with finger</button>
         </div>
       </div>
+      <div class="ctrl" id="ctrl-player" hidden>
+        <span class="ctrl-l">Player control</span>
+        <div class="seg" role="group" aria-label="Player control">
+          <button id="p-abs" type="button" aria-pressed="true">Player at finger</button>
+          <button id="p-rel" type="button" aria-pressed="false">Move with finger</button>
+        </div>
+      </div>
       <p class="hint" id="hint">Touch or drag anywhere on the field and the ball goes exactly there. Tap a player to see their job.</p>
       <div class="stats">
         <div class="stat"><span>Back line</span><b id="s-back">0<small>m</small></b></div>
@@ -782,6 +789,16 @@ el('path', {d:'M0 -.55 L.52 -.17 L.32 .45 L-.32 .45 L-.52 -.17 Z', fill:'#111'},
 let dragging = false, grab = null, pgrab = null;
 let ctrl = matchMedia('(hover: none) and (pointer: coarse)').matches ? 'rel' : 'abs';
 try { const saved = localStorage.getItem('ballCtrlPick'); if (saved === 'abs' || saved === 'rel') ctrl = saved; } catch (e) {}
+// player control mirrors ball control: 'abs' = player at finger, 'rel' = player moves the way the finger moves
+let pctrl = matchMedia('(hover: none) and (pointer: coarse)').matches ? 'rel' : 'abs';
+try { const saved = localStorage.getItem('playerCtrlPick'); if (saved === 'abs' || saved === 'rel') pctrl = saved; } catch (e) {}
+// put a field player at a spot; the ball sits 2.6 m up the field from them
+function movePlayer(id, pos){
+  state.carrier = id; state.ball = {x: pos.x, d: pos.d + 2.6};
+  ballCur.x = state.ball.x; ballCur.d = state.ball.d;
+  state.scen = 'custom'; update();
+}
+const clampPlayer = q => ({x: clamp(q.x, 1, W - 1), d: clamp(q.d, 1, L - 3.6)});
 function rawField(e){
   const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -792,14 +809,17 @@ function toField(e){ return clampBall(rawField(e)); }
 svg.addEventListener('pointerdown', e => {
   stopPlay();
   if (state.drag === 'player'){
-    // grab the nearest field player within reach of the finger
+    // pressing on (or, when moving with the finger, near) a player picks them; pressing elsewhere controls the picked player
     const f = rawField(e);
     const near = PLAYERS.map(p => ({p, dd: Math.hypot(cur[p.id].x - f.x, cur[p.id].d - f.d)})).sort((a, b) => a.dd - b.dd)[0];
-    if (!near || near.dd > 7) return;
-    if (near.p.unit === 'gk'){ select('GK'); return; }   // the keeper can be tapped for their card, not dragged
+    const onPlayer = near && near.dd <= (pctrl === 'abs' ? 3.5 : 7);
+    if (onPlayer) select(near.p.id);
+    const id = onPlayer ? near.p.id : state.sel;
+    if (!id || PLAYERS.find(p => p.id === id).unit === 'gk') return;   // the keeper can be tapped for their card, not dragged
     dragging = true; svg.setPointerCapture(e.pointerId);
-    pgrab = {id: near.p.id, f, off: {x: cur[near.p.id].x - f.x, d: cur[near.p.id].d - f.d}, moved: false};
-    select(near.p.id);
+    pgrab = {id, f, from: {x: cur[id].x, d: cur[id].d}, moved: false};
+    // player at finger: a touch on open field sends the picked player straight there
+    if (pctrl === 'abs' && !onPlayer){ pgrab.moved = true; movePlayer(id, clampPlayer(f)); }
     return;
   }
   dragging = true; svg.setPointerCapture(e.pointerId);
@@ -813,14 +833,14 @@ svg.addEventListener('pointerdown', e => {
 svg.addEventListener('pointermove', e => {
   if (!dragging) return;
   if (pgrab){
-    const f = rawField(e);
-    if (!pgrab.moved && Math.hypot(f.x - pgrab.f.x, f.d - pgrab.f.d) < .6) return;
+    const f = rawField(e), dx = f.x - pgrab.f.x, dd = f.d - pgrab.f.d;
+    if (!pgrab.moved && Math.hypot(dx, dd) < .6) return;
     pgrab.moved = true;
-    // the player sits just behind the ball: ball = player spot + 2.6 m up the field
-    const pos = {x: clamp(f.x + pgrab.off.x, 1, W - 1), d: clamp(f.d + pgrab.off.d, 1, L - 3.6)};
-    state.carrier = pgrab.id; state.ball = {x: pos.x, d: pos.d + 2.6};
-    ballCur.x = state.ball.x; ballCur.d = state.ball.d;
-    state.scen = 'custom'; update();
+    if (pctrl === 'abs'){ movePlayer(pgrab.id, clampPlayer(f)); return; }
+    const want = {x: pgrab.from.x + dx, d: pgrab.from.d + dd}, pos = clampPlayer(want);
+    // re-anchor at the edges so reversing direction responds immediately
+    if (pos.x !== want.x || pos.d !== want.d) pgrab = {...pgrab, f, from: pos};
+    movePlayer(pgrab.id, pos);
     return;
   }
   if (ctrl === 'abs'){ state.ball = toField(e); ballCur.x = state.ball.x; ballCur.d = state.ball.d; update(); return; }
@@ -835,10 +855,13 @@ svg.addEventListener('pointermove', e => {
 });
 const mAbs = document.getElementById('m-abs'), mRel = document.getElementById('m-rel'), hintEl = document.getElementById('hint');
 function setHint(){
+  const how = pctrl === 'abs'
+    ? 'Tap a player to pick them, then touch or drag anywhere and they go exactly there.'
+    : 'Tap a player to pick them, then drag anywhere and they move the same way your finger does.';
   hintEl.textContent = state.drag === 'player'
-    ? (state.phase === 'attack'
-      ? 'Drag any player and they carry the ball. Watch who comes short to support and who runs in behind.'
-      : 'Drag any player to press the attacker (red). Watch who covers behind them and who tucks in for balance.')
+    ? `${how} ${state.phase === 'attack'
+      ? 'They carry the ball: watch who comes short to support and who runs in behind.'
+      : 'They press the attacker (red): watch who covers behind them and who tucks in for balance.'}`
     : ctrl === 'abs'
       ? 'Touch or drag anywhere on the field and the ball goes exactly there. Tap a player to see their job.'
       : 'Drag anywhere on the field and the ball moves the same way your finger does, from wherever it is now. Tap a player to see their job.';
@@ -851,11 +874,21 @@ function setCtrl(m, save){
 }
 mAbs.onclick = () => setCtrl('abs', true); mRel.onclick = () => setCtrl('rel', true);
 setCtrl(ctrl);
+const pAbs = document.getElementById('p-abs'), pRel = document.getElementById('p-rel');
+function setPctrl(m, save){
+  pctrl = m;
+  pAbs.setAttribute('aria-pressed', m === 'abs'); pRel.setAttribute('aria-pressed', m === 'rel');
+  setHint();
+  if (save){ try { localStorage.setItem('playerCtrlPick', m); } catch (e) {} }
+}
+pAbs.onclick = () => setPctrl('abs', true); pRel.onclick = () => setPctrl('rel', true);
+setPctrl(pctrl);
 const dBall = document.getElementById('d-ball'), dPlayer = document.getElementById('d-player');
 function setDrag(m){
   state.drag = m;
   dBall.setAttribute('aria-pressed', m === 'ball'); dPlayer.setAttribute('aria-pressed', m === 'player');
   document.getElementById('ctrl-ball').hidden = m === 'player';
+  document.getElementById('ctrl-player').hidden = m === 'ball';
   svg.style.cursor = m === 'player' ? 'grab' : '';
   if (m === 'ball') state.carrier = null;
   setHint(); update();
