@@ -485,8 +485,10 @@ el('circle', {r:1.35, fill:'#fff', stroke:'#111', 'stroke-width':.25}, ballG);
 el('path', {d:'M0 -.55 L.52 -.17 L.32 .45 L-.32 .45 L-.52 -.17 Z', fill:'#111'}, ballG);
 
 /* ---------- interaction ---------- */
-let dragging = false, ctrl = 'abs', grab = null;
-try { if (localStorage.getItem('ballCtrl') === 'rel') ctrl = 'rel'; } catch (e) {}
+// touch devices default to "move with finger"; a choice the viewer made before wins
+let dragging = false, grab = null;
+let ctrl = matchMedia('(hover: none) and (pointer: coarse)').matches ? 'rel' : 'abs';
+try { const saved = localStorage.getItem('ballCtrlPick'); if (saved === 'abs' || saved === 'rel') ctrl = saved; } catch (e) {}
 function rawField(e){
   const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -516,15 +518,15 @@ svg.addEventListener('pointermove', e => {
   state.scen = 'custom'; update();
 });
 const mAbs = document.getElementById('m-abs'), mRel = document.getElementById('m-rel'), hintEl = document.getElementById('hint');
-function setCtrl(m){
+function setCtrl(m, save){
   ctrl = m;
   mAbs.setAttribute('aria-pressed', m === 'abs'); mRel.setAttribute('aria-pressed', m === 'rel');
   hintEl.textContent = m === 'abs'
     ? 'Touch or drag anywhere on the field and the ball goes exactly there. Tap a player to see their job.'
     : 'Drag anywhere on the field and the ball moves the same way your finger does, from wherever it is now. Tap a player to see their job.';
-  try { localStorage.setItem('ballCtrl', m); } catch (e) {}
+  if (save){ try { localStorage.setItem('ballCtrlPick', m); } catch (e) {} }
 }
-mAbs.onclick = () => setCtrl('abs'); mRel.onclick = () => setCtrl('rel');
+mAbs.onclick = () => setCtrl('abs', true); mRel.onclick = () => setCtrl('rel', true);
 setCtrl(ctrl);
 const endDrag = () => { dragging = false; grab = null; };
 svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
