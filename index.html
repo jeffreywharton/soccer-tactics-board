@@ -278,7 +278,7 @@ const BACK_META = {
     counter:'The nearest midfielder delays the ball, the center back holds the middle, the outside defenders pinch in, and everyone else sprints back goal-side.',
     centerRule:'The center back never leaves the middle.',
     principle:['Three across, always connected','The center back never leaves the middle alone. When an outside defender presses, the other two slide across behind.']},
-  // 6v6 back lines
+  // small-sided back lines (6v6 and 7v7)
   two: {suffix:'', up:null, step:STEP_FLAT,
     rest:'The two defenders', middle:'the other defender covers the middle',
     counter:'The nearest defender steps to the ball to slow it down, the other defender covers behind, and the strikers sprint back to help.',
@@ -307,24 +307,40 @@ const FORMATIONS = [
   ['424-stopper', '4-2-4 (with Stopper)', '4-2-4', 'stopper', 'm2', 'f4'],
   ['334',         '3-3-4',                '3-3-4', 'three',   'm3', 'f4', {CM:5, RM:8}],
 ];
-// 6v6: five field players plus the goalkeeper, on a small-sided field about 42 x 27 m.
-// Positions use the same 68 x 105 drawing; distances shown to coaches are scaled to the small field.
+// Small-sided games use the same 68 x 105 drawing; distances shown to coaches are scaled to the real field.
+// 7v7: six field players on about 55 x 35 m. 6v6: five field players on about 42 x 27 m.
+const SIDE = {7:{scale:.52, count:'six'}, 6:{scale:.4, count:'five'}};
 const SMALL = [
-  {key:'6v6-23', label:'2-3 (2 defenders, 3 strikers)', short:'2-3', back:'two',
+  {key:'7v7-303', size:7, label:'3-0-3 (3 defenders, 3 strikers)', short:'3-0-3', back:'three6',
+   desc:'Three defenders and three strikers.',
+   home:'Three defenders sit across the edge of the box, with three strikers spread across the front.',
+   players:[['LB',3,12,22],['CB',4,34,18,null,'CB_three'],['RB',2,56,22],['LW',11,10,62],['ST',9,34,68,null,'ST6'],['RW',7,58,62]]},
+  {key:'7v7-204', size:7, label:'2-0-4 (2 defenders, 4 strikers)', short:'2-0-4', back:'two',
+   desc:'Two defenders and four strikers.',
+   home:'The two defenders sit side by side near the edge of the box, with four strikers across the front and the wingers on the touchlines.',
+   players:[['LCB',3,22,22,'Left Defender'],['RCB',2,46,22,'Right Defender'],['LW',11,8,60,'Left Winger'],['LS',10,26,66,'Left Center Striker'],['RS',9,42,66,'Right Center Striker'],['RW',7,60,60,'Right Winger']]},
+  {key:'7v7-312', size:7, label:'3-1-2 (3 defenders, 1 mid, 2 strikers)', short:'3-1-2', back:'three6',
+   desc:'Three defenders, one midfielder and two strikers.',
+   home:'Three defenders sit across the edge of the box, one midfielder links the team in the middle, and two strikers play up top.',
+   players:[['LB',3,12,22],['CB',4,34,18,null,'CB_three'],['RB',2,56,22],['CM',8,34,42],['LS',10,24,66],['RS',9,44,66]]},
+  {key:'7v7-213', size:7, label:'2-1-3 (2 defenders, 1 mid, 3 strikers)', short:'2-1-3', back:'two',
+   desc:'Two defenders, one midfielder and three strikers.',
+   home:'Two defenders sit side by side near the edge of the box, one midfielder links the team in the middle, and three strikers spread across the front.',
+   players:[['LCB',3,22,20,'Left Defender'],['RCB',2,46,20,'Right Defender'],['CM',8,34,42],['LW',11,10,64],['ST',9,34,70],['RW',7,58,64]]},
+  {key:'6v6-23', size:6, label:'2-3 (2 defenders, 3 strikers)', short:'2-3', back:'two',
    desc:'Two defenders and three strikers.',
    home:'The two defenders sit side by side near the edge of the box, with three strikers spread across the front.',
    players:[['LCB',3,22,22,'Left Defender'],['RCB',2,46,22,'Right Defender'],['LW',11,10,60],['ST',9,34,66,null,'ST6'],['RW',7,58,60]]},
-  {key:'6v6-32', label:'3-2 (3 defenders, 2 strikers)', short:'3-2', back:'three6',
+  {key:'6v6-32', size:6, label:'3-2 (3 defenders, 2 strikers)', short:'3-2', back:'three6',
    desc:'Three defenders and two strikers.',
    home:'Three defenders sit across the edge of the box, with two strikers up top.',
    players:[['LB',3,12,24],['CB',4,34,20,null,'CB_three'],['RB',2,56,24],['LS',10,24,64],['RS',9,44,64]]},
-  {key:'6v6-212', label:'2-1-2 (2 defenders, 1 mid, 2 strikers)', short:'2-1-2', back:'two',
+  {key:'6v6-212', size:6, label:'2-1-2 (2 defenders, 1 mid, 2 strikers)', short:'2-1-2', back:'two',
    desc:'Two defenders, one midfielder and two strikers.',
    home:'Two defenders sit side by side near the edge of the box, one midfielder links the team in the middle, and two strikers play up top.',
    players:[['LCB',3,22,20,'Left Defender'],['RCB',2,46,20,'Right Defender'],['CM',8,34,42],['LS',10,24,66],['RS',9,44,66]]},
 ];
-const SMALL_SCALE = 0.4;
-// with no midfield behind them, 6v6 strikers track back further
+// with little or no midfield behind them, small-sided strikers track back further
 const U_SMALL = {...U, fwd:{...U.fwd, kb:.75, dmin:[26,18]}};
 const DEFAULT_FORMATION = '433-flat';
 const toPlayer = (up, nums = {}) => ([id, n, x, d, name, role]) => ({
@@ -334,8 +350,8 @@ function buildFormation(key){
   const sm = SMALL.find(f => f.key === key);
   if (sm){
     const meta = BACK_META[sm.back];
-    return {...meta, ...sm, small:true, scale:SMALL_SCALE, U:U_SMALL, players:[['GK',1,34,5], ...sm.players].map(toPlayer(null)),
-      title:`The 6v6 ${sm.short}`, homeText:sm.home,
+    return {...meta, ...sm, small:true, scale:SIDE[sm.size].scale, U:U_SMALL, players:[['GK',1,34,5], ...sm.players].map(toPlayer(null)),
+      title:`The ${sm.size}v${sm.size} ${sm.short}`, homeText:sm.home,
       lede:`${sm.desc} Move the ball and watch how every player should shift. Your team attacks up the field toward the orange goal and defends the blue goal at the bottom.`};
   }
   const [, label, short, back, mid, fwd, nums = {}] = FORMATIONS.find(f => f[0] === key);
@@ -408,7 +424,7 @@ const ROLES = {
       def:['Press the other team\'s left defender.','Block the pass down your touchline.','Recover to about halfway if the ball gets past you.'],
       cue:'Wide to build it, in the box to finish it.'},
 };
-ROLES.ST6 = {sub:'Strikers · links the team in a 6v6',
+ROLES.ST6 = {sub:'Strikers · links the team in a small-sided game',
   att:['Check back toward the ball so the defenders always have a forward pass.','Hold the ball up and lay it off to a winger running past you.','Attack the middle of the goal on crosses and follow every shot in for the rebound.'],
   def:['Press the ball first so the defenders have time to set up.','Drop back to the middle of the field when the ball gets past you.','Force play toward a touchline where the wingers can help.'],
   cue:'Show for it, then turn and go.'};
@@ -445,6 +461,9 @@ const SCEN = [
    text:f => `Corner from the right. One player takes it. Runners attack the near post, the far post and the middle of the six-yard box, one crashes the penalty spot, one offers a short corner, and one waits at the top of the box for clearances. ${f.up ? `The ${NAMES[f.up].toLowerCase()} goes up to win the header. ` : ''}Three defenders and the goalkeeper stay home to stop a counter. Tap a player to see their spot.`,
    gk:[34,24,'Edge of our box, ready to sweep a long clearance'],
    text6:f => `Corner from the right. One player takes it, runners attack the near and far posts, and one waits at the top of the box for clearances. At least one defender stays home with the goalkeeper to stop a counter. Tap a player to see their spot.`,
+   spots7:[[24,52,'Staying home near halfway, marking their outlet'], [44,52,'Staying home near halfway, marking their outlet'], [34,86,'Top of the box: win the clearance or shoot on a rebound'],
+           [29,99,'Attacking the far post'], [39,100,'Attacking the near post'], [66.5,103.4,'Taking the corner']],
+   text7:f => `Corner from the right. One player takes it, runners attack the near and far posts, and one waits at the top of the box for clearances. Two players stay home with the goalkeeper to stop a counter. Tap a player to see their spot.`,
    spots6:[[34,50,'Staying home at halfway to stop a counter'], [34,86,'Top of the box: win the clearance or shoot on a rebound'],
            [29,99,'Attacking the far post'], [39,100,'Attacking the near post'], [66.5,103.4,'Taking the corner']],
    spots:[[20,58,'Staying home, marking their outlet on this side'], [34,52,'Last defender at halfway, organizing the rest defense'], [48,58,'Staying home, marking their outlet on this side'],
@@ -454,6 +473,9 @@ const SCEN = [
    text:f => `Corner from our left. Defenders guard the near post, the far post and the middle of the six-yard box, and one player marks their best header near the penalty spot. One player stands 10 yards from the ball to block a short corner, midfielders mark runners, two players wait at the top of the box for second balls, and one stays high as the outlet for a counter. Tap a player to see their spot.`,
    gk:[34.5,1,'Middle of the goal, a step toward the far post; claim anything in the six-yard box'],
    text6:f => `Corner from our left. One defender guards the near post and another marks their best header in front of goal. One player blocks the short corner, one marks a runner at the far side, and one stays high as the outlet for a counter. Tap a player to see their spot.`,
+   spots7:[[30.1,2.4,'On the near post'], [38.9,2.4,'On the far post'], [34,8,'Marking their best header in front of goal'],
+           [12,12,'Blocking the short corner'], [40,14,'Marking a runner at the far side of the box'], [42,40,'Outlet near halfway for the counter-attack']],
+   text7:f => `Corner from our left. Two players guard the near and far posts and one marks their best header in front of goal. One player blocks the short corner, one marks a runner at the far side, and one stays high as the outlet for a counter. Tap a player to see their spot.`,
    spots6:[[30.1,2.4,'On the near post'], [34,8,'Marking their best header in front of goal'], [12,12,'Blocking the short corner'],
            [40,12,'Marking a runner at the far side of the box'], [42,40,'Outlet near halfway for the counter-attack']],
    spots:[[30.1,2.4,'On the near post'], [34,6,'Middle of the six-yard box: clear anything at head height'], [38.9,2.4,'On the far post'],
@@ -464,6 +486,8 @@ const SCEN = [
    text:f => `Playing out from the back. Defenders split wide to the edges of the box and one slides across the goal area. One player stands at the top of the box, facing the goalkeeper, as the main short option. Midfielders spread across the field about 35 m out, and the strikers stretch the other team near halfway. If they press high, the goalkeeper can go long instead.`,
    gk:[28,3.5,'Taking the goal kick: short to a defender or the player at the top of the box'],
    text6:f => `Playing out from the back. Two players split wide to the edges of the box, one shows in the middle, and the front players stretch the other team. If they press high, the goalkeeper can go long instead.`,
+   spots7:[[10,15,'Wide at the edge of the box for a short pass'], [58,15,'Wide at the edge of the box for a short pass'], [34,36,'Middle of the field, showing for the ball'],
+           [10,58,'High and wide, stretching their defense'], [34,62,'Target for a long kick if the short options are covered'], [58,58,'High and wide, stretching their defense']],
    spots6:[[10,15,'Wide at the edge of the box for a short pass'], [58,15,'Wide at the edge of the box for a short pass'], [34,40,'Middle of the field, showing for the ball'],
            [10,58,'High and wide, stretching their defense'], [58,58,'High and wide, stretching their defense']],
    spots:[[6,17,'Wide at the edge of the box for a short pass'], [43,9,'Across the goal area as the safe short option'], [62,17,'Wide at the edge of the box for a short pass'],
@@ -473,6 +497,8 @@ const SCEN = [
    text:f => `Their goal kick. We have to stay outside their box until the ball is kicked. The front players set up at the edge of the box to press whoever receives. Midfield marks the short options behind them, and the back line pushes up near halfway to keep the team compact. If they kick it long, our central defenders win the header.`,
    gk:[34,20,'Top of our box, ready to sweep a long kick'],
    text6:f => `Their goal kick. We have to stay outside their box until the ball is kicked. Front players wait at the edge of their box to press whoever receives, one player marks the middle, and the defenders hold near halfway to win a long kick.`,
+   spots7:[[20,46,'Near halfway, marking their forward'], [48,46,'Near halfway, marking their forward'], [34,60,'Marking the player in the middle'],
+           [16,84,'Edge of their box, ready to press'], [34,87,'Edge of their box, ready to press the first pass'], [52,84,'Edge of their box, ready to press']],
    spots6:[[22,46,'Near halfway, marking their forward'], [46,46,'Near halfway, marking their forward'], [34,62,'Marking the player in the middle'],
            [18,84,'Edge of their box, ready to press'], [50,84,'Edge of their box, ready to press']],
    spots:[[16,48,'Pushed up near halfway, marking their winger'], [34,44,'Deepest defender, covering the long ball'], [52,48,'Pushed up near halfway, marking their winger'],
@@ -524,7 +550,7 @@ function setAssign(sc, flip){
   const out = {};
   const [gx, gtag] = mir(sc.gk[0], sc.gk[2]);
   out.GK = {x:gx, d:sc.gk[1], tag:gtag};
-  const spots = (F.small ? sc.spots6 : sc.spots).map(s => { const [x, tag] = mir(s[0], s[2]); return {x, d:s[1], tag, r:s[3] ?? s[1], up:!!s[4]}; });
+  const spots = (F.small ? sc['spots' + F.size] : sc.spots).map(s => { const [x, tag] = mir(s[0], s[2]); return {x, d:s[1], tag, r:s[3] ?? s[1], up:!!s[4]}; });
   const field = PLAYERS.filter(p => p.unit !== 'gk');
   // players rank by line (whole units tie), so side of the field decides within a line
   const pr = ranks(field.map(p => LINE_ORDER[p.unit])), sr = ranks(spots.map(s => s.r));
@@ -895,7 +921,7 @@ function describe(){
 }
 function renderNote(){
   const s = SCEN.find(x => x.key === state.scen);
-  let [t, p] = s ? [s.label, ((F.small && s.text6) || s.text)(F)] : describe();
+  let [t, p] = s ? [s.label, ((F.small && (s['text' + F.size] || s.text6)) || s.text)(F)] : describe();
   if (state.view === 'cov'){ const pl = PLAYERS.find(x => x.id === state.sel); t = `Coverage: ${pl.name}`; p = pl.id === 'GK' ? `The shaded zone is the goalkeeper's area: the whole penalty box. Diamonds mark their spots on corners and goal kicks. Tap another player to compare.` : `The shaded zone is everywhere the ${pl.name.toLowerCase()} ends up in open play, across every ball position, attacking and defending. Diamonds mark their spots on corners and goal kicks. The players stay live, so you can still pick a situation or drag the ball. Tap another player to compare.`; }
   if (s && state.flip){ p = swapLR(p); t += ' (other side)'; }
   flipBtn.hidden = !(s && s.flippable);
@@ -982,7 +1008,7 @@ function update(){
 
 /* ---------- formation picker ---------- */
 const fSel = document.getElementById('formation');
-[['11 v 11', FORMATIONS.map(([key, label]) => ({key, label}))], ['6 v 6', SMALL]].forEach(([name, list]) => {
+[['11 v 11', FORMATIONS.map(([key, label]) => ({key, label}))], ['7 v 7', SMALL.filter(f => f.size === 7)], ['6 v 6', SMALL.filter(f => f.size === 6)]].forEach(([name, list]) => {
   const g = document.createElement('optgroup'); g.label = name;
   list.forEach(({key, label}) => { const o = document.createElement('option'); o.value = key; o.textContent = label; g.appendChild(o); });
   fSel.appendChild(g);
@@ -993,11 +1019,11 @@ function setFormation(key){
   fSel.value = key;
   document.getElementById('f-title').textContent = F.title;
   document.getElementById('f-lede').textContent = F.lede;
-  document.getElementById('f-eyebrow').textContent = F.small ? 'Tactics board · 6 v 6 · Small-sided field' : 'Tactics board · 11 v 11 · Ages 9–12';
-  document.getElementById('p-count').textContent = F.small ? 'five' : 'ten';
+  document.getElementById('f-eyebrow').textContent = F.small ? `Tactics board · ${F.size} v ${F.size} · Small-sided field` : 'Tactics board · 11 v 11 · Ages 9–12';
+  document.getElementById('p-count').textContent = F.small ? SIDE[F.size].count : 'ten';
   document.getElementById('p-short').textContent = scaleM('35–45 m');
   document.getElementById('p-step').innerHTML = `<h3>${F.principle[0]}</h3><p>${F.principle[1]}</p>`;
-  document.title = `${F.small ? '6v6 ' : ''}${F.label} · Soccer Tactics Board`;
+  document.title = `${F.small ? `${F.size}v${F.size} ` : ''}${F.label} · Soccer Tactics Board`;
   if (!has(state.sel)) state.sel = ['SP','SW','CB','LCB'].find(has);
   buildPlayers(); buildChips();
   if (state.view === 'cov') sampleCoverage();

@@ -16,13 +16,20 @@ Formations are written defenders-midfielders-strikers, so a 4-3-3 is four defend
 - 4-2-4 (Flatback 4), (with Sweeper), (with Stopper)
 - 3-3-4
 
+**7 v 7** (six field players plus the goalkeeper):
+
+- 3-0-3 (3 defenders, 3 strikers)
+- 2-0-4 (2 defenders, 4 strikers)
+- 3-1-2 (3 defenders, 1 mid, 2 strikers)
+- 2-1-3 (2 defenders, 1 mid, 3 strikers)
+
 **6 v 6** (five field players plus the goalkeeper):
 
 - 2-3 (2 defenders, 3 strikers)
 - 3-2 (3 defenders, 2 strikers)
 - 2-1-2 (2 defenders, 1 mid, 2 strikers)
 
-6v6 uses the same field drawing, but every distance on the page (readouts, coaching tips and player cards) is shown for a small-sided field of about 42 × 27 m.
+7v7 and 6v6 use the same field drawing, but every distance on the page (readouts, coaching tips and player cards) is shown for a small-sided field: about 55 × 35 m for 7v7 and 42 × 27 m for 6v6.
 
 The page remembers the last formation picked, and the link updates (for example `#442-stopper`) so you can send a specific formation to another coach.
 
